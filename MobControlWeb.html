@@ -1,0 +1,244 @@
+<meta charset="UTF-8">
+<html lang="lv">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ierīču pārvaldīšanas platforma | © JĀNIS EGLIS</title>
+<link rel="icon" type="image/x-icon" href="https://site-710050.mozfiles.com/files/710050/icon.ico">
+<style>
+:root{--bg:#111;--fg:#eee;--accent:#c62828;
+      --ph:url(https://site-710050.mozfiles.com/files/710050/medium/device_not_found.png);}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:sans-serif;overflow:hidden}
+#panel{display:flex;flex-direction:column;height:100%}
+#grid{flex:1;display:grid;gap:4px;padding:4px}
+.grid-1{grid-template:1fr/1fr}.grid-2{grid-template:1fr/1fr 1fr}
+.grid-3,.grid-4{grid-template:repeat(2,1fr)/repeat(2,1fr)}
+@media(max-width:700px){#grid{grid-template:repeat(var(--rows,4),1fr)/1fr}}
+.slot{position:relative;display:flex;justify-content:center;align-items:center;overflow:hidden;
+      background:#000 var(--ph) center/contain no-repeat;border:1px solid #333}
+.slot iframe{flex:1;width:96%;height:96%;border:0;background:#000}
+.closeBtn{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;
+          background:var(--accent);color:#fff;font:bold 14px/20px sans-serif;cursor:pointer;opacity:.85;
+          display:flex;justify-content:center;align-items:center}
+.closeBtn:hover{opacity:1}
+.controls{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+          background:#000a;gap:.4rem}
+.controls input{width:80%;padding:.4rem;border:1px solid #666;border-radius:4px;
+                background:rgba(0,0,0,.5);color:#fff;text-align:center}
+.controls button{padding:.4rem 1rem;border:0;border-radius:4px;background:#4caf50;color:#fff;font-weight:bold;cursor:pointer}
+.disconnect{background:#f44336}
+
+/* ── «TOP» pogu josla ── */
+.top{position:absolute;top:8px;right:8px;display:flex;gap:.5rem;z-index:10}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;
+     font:600 14px/1 system-ui;cursor:pointer;transition:.15s}
+.btn:hover{opacity:.85}
+.dd{position:relative}
+.dd .content{display:none;position:absolute;top:110%;right:0;min-width:260px;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+  border:1px solid #333;border-radius:8px;padding:1rem;color:#eee;font-size:14px;z-index:20}
+.dd.show .content{display:block}
+
+/* ----------  RESPONSĪVAS IZMAIŅAS  ---------- */
+@media(max-width:700px){
+  .top{
+    position:static;          /* vairs neabsolūti – netraucē H2 */
+    flex-wrap:wrap;           /* ļauj lomām iet nākamajā rindā */
+    justify-content:center;
+    gap:.5rem;
+    margin-bottom:.5rem;
+  }
+  /* dropdown saturs centrēts zem pogas */
+  .dd .content{
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
+  }
+}
+/* ----------  /RESPĪVAS IZMAIŅAS  ---------- */
+
+#help{width:clamp(260px,40vw,420px);max-height:80vh;overflow:auto}
+#url textarea{height:48px;width:100%;resize:none}
+.copy{margin-left:6px;padding:4px 8px;border:0;border-radius:4px;background:#2196f3;color:#fff;cursor:pointer}
+.copy:hover{opacity:.85}
+select{width:100%;margin-top:.5rem;padding:.35rem;border:1px solid #666;border-radius:6px;
+       background:rgba(0,0,0,.5);color:#fff;text-align:center}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="dd"><button class="btn">Palīdzība</button>
+    <div class="content" id="help">
+      <h3 style="margin:0;text-align:center">Instrukcija</h3>
+      <ol style="padding-left:1rem">
+        <li>Instalē <b>VNC Server</b> ierīcē.</li>
+        <li>Ieslēdz VNC un atļauj tīklu.</li>
+        <li>Pieslēdz ierīci Hotspotam.</li>
+        <li>URL laukā raksti:<br><code>wss://IP:PORT?password=PAROLE</code></li>
+        <li>Pabeidz ar <b>Atvienot</b>.</li>
+      </ol>
+    </div></div>
+
+  <div class="dd"><button class="btn">URL sagatavošana</button>
+    <div class="content" id="url">
+      <input id="u" placeholder="http://192.168.x.x:55455/vnc.html?..."><br>
+      <input id="p" placeholder="parole" style="margin-top:.4rem"><br>
+      <div style="display:flex;align-items:center;margin-top:.4rem">
+        <textarea id="o" readonly></textarea><button class="copy" id="c">Kopēt</button>
+      </div>
+    </div></div>
+
+  <div class="dd"><button class="btn">Iestatījumi</button>
+    <div class="content"><label>Cik logus rādīt?</label>
+      <select id="sel"><option value="1">1</option><option value="2">2</option>
+        <option value="3">3</option><option value="4" selected>4</option></select>
+    </div></div>
+</div>
+
+<div id="panel">
+  <h2 style="text-align:center;margin:.5rem 0 0;font-size:22px;width:clamp(260px,90vw,1400px);margin-inline:auto;
+  padding-inline:4px;">IERĪČU PĀRVALDĪŠANAS PLATFORMA | ONLY ANDROID :) | © JĀNIS EGLIS</h2>
+  <div id="grid" class="grid-4"></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+/* dropdown */
+document.addEventListener('click',e=>{
+ if(e.target.matches('.btn')) e.target.parentNode.classList.toggle('show');
+ document.querySelectorAll('.dd').forEach(d=>{if(!d.contains(e.target)) d.classList.remove('show');});
+});
+
+/* URL sagatavošana */
+['u','p'].forEach(id=>$(id).addEventListener('input',()=>{
+  const base=$('u').value.trim(), pw=$('p').value.trim();
+  if(!base){$('o').value='';return;}
+  const sep=base.includes('?')?'&':'?';
+  $('o').value=pw?base+sep+'password='+encodeURIComponent(pw):base;
+}));
+$('c').onclick=()=>{
+  const url=$('o').value;
+  if(!url) return;
+  navigator.clipboard.writeText(url).then(()=>{
+    const b=$('c');
+    b.textContent='URL nokopēts';
+    b.style.background='#4caf50';
+  });
+};
+
+/* pievienot resize=scale */
+function ensureScale(url){
+  if(url.includes('resize=')) return url;
+  const sep=url.includes('?')?'&':'?';
+  return url+sep+'resize=scale';
+}
+
+/* sloti */
+const grid=$('grid');
+function makeSlot(){
+  const d=document.createElement('div');d.className='slot';
+  d.innerHTML='<div class="closeBtn">×</div>\
+    <div class="controls"><input placeholder="Pilns URL"><button>Savienot</button></div>';
+  const close=d.querySelector('.closeBtn'),ctr=d.querySelector('.controls'),
+        inp=ctr.querySelector('input'),btn=ctr.querySelector('button');
+  close.onclick=_=>disconnect(d);
+  btn.onclick=_=>btn.textContent==='Savienot'
+      ? connect(d,inp.value.trim(),ctr,btn)
+      : disconnect(d,ctr,btn);
+  return d;
+}
+function connect(div,url,ctr,btn){
+  if(!url){alert('Ievadi URL!');return;}
+  const f=document.createElement('iframe');
+  f.src=ensureScale(url);
+  div.appendChild(f);
+  div.style.background='none';
+  ctr.style.display='none';
+  btn.textContent='Atvienot';
+  btn.classList.add('disconnect');
+}
+function disconnect(div,ctr,btn){
+  div.querySelector('iframe')?.remove();
+  div.style.background='#000 var(--ph) center/contain no-repeat';
+  (ctr||=div.querySelector('.controls')).style.display='flex';
+  (btn||=div.querySelector('button')).textContent='Savienot';
+  btn.classList.remove('disconnect');
+}
+
+/* slotu skaits */
+function setSlots(n){
+  grid.className='grid-'+n;grid.style.setProperty('--rows',n);
+  while(grid.children.length<n) grid.appendChild(makeSlot());
+  while(grid.children.length>n) grid.removeChild(grid.lastChild);
+}
+$('sel').onchange=e=>setSlots(+e.target.value);
+setSlots(4);
+
+
+
+
+
+
+
+
+
+
+// ⬇ Service Worker reģistrācija tieši šajā lapā
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE_NAME = 'mobcontrol-cache-v1';
+    const FILES_TO_CACHE = [
+      location.pathname // Kešot tieši šo lapu
+    ];
+
+    self.addEventListener('install', event => {
+      event.waitUntil(
+        caches.open(CACHE_NAME)
+          .then(cache => cache.addAll(FILES_TO_CACHE))
+      );
+      self.skipWaiting();
+    });
+
+    self.addEventListener('activate', event => {
+      event.waitUntil(
+        caches.keys().then(keys => Promise.all(
+          keys.map(key => {
+            if (key !== CACHE_NAME) return caches.delete(key);
+          })
+        ))
+      );
+      self.clients.claim();
+    });
+
+    self.addEventListener('fetch', event => {
+      event.respondWith(
+        caches.match(event.request)
+          .then(response => {
+            return response || fetch(event.request);
+          })
+      );
+    });
+  `;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl)
+    .then(reg => console.log('✅ Service Worker aktivizēts!'))
+    .catch(err => console.error('❌ Service Worker kļūda:', err));
+}
+
+
+
+
+
+
+
+
+
+
+</script>
+
+</body>
+</html>
