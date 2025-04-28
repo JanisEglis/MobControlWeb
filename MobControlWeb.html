@@ -174,9 +174,8 @@ function setSlots(n){
 }
 $('sel').onchange=e=>setSlots(+e.target.value);
 setSlots(4);
-</script>
 
-<script>
+    // Service Worker reģistrācija    
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
     .then(reg => console.log('✅ Service Worker reģistrēts!'))
