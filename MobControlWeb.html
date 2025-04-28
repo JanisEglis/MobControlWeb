@@ -176,63 +176,13 @@ $('sel').onchange=e=>setSlots(+e.target.value);
 setSlots(4);
 
 
-
-
-
-
-
-
-
-
-// ⬇ Service Worker reģistrācija tieši šajā lapā
+<script>
 if ('serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE_NAME = 'mobcontrol-cache-v1';
-    const FILES_TO_CACHE = [
-      location.pathname // Kešot tieši šo lapu
-    ];
-
-    self.addEventListener('install', event => {
-      event.waitUntil(
-        caches.open(CACHE_NAME)
-          .then(cache => cache.addAll(FILES_TO_CACHE))
-      );
-      self.skipWaiting();
-    });
-
-    self.addEventListener('activate', event => {
-      event.waitUntil(
-        caches.keys().then(keys => Promise.all(
-          keys.map(key => {
-            if (key !== CACHE_NAME) return caches.delete(key);
-          })
-        ))
-      );
-      self.clients.claim();
-    });
-
-    self.addEventListener('fetch', event => {
-      event.respondWith(
-        caches.match(event.request)
-          .then(response => {
-            return response || fetch(event.request);
-          })
-      );
-    });
-  `;
-
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-
-  navigator.serviceWorker.register(swUrl)
-    .then(reg => console.log('✅ Service Worker aktivizēts!'))
+  navigator.serviceWorker.register('sw.js')
+    .then(reg => console.log('✅ Service Worker reģistrēts!'))
     .catch(err => console.error('❌ Service Worker kļūda:', err));
 }
-
-
-
-
-
+</script>
 
 
 
